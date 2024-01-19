@@ -417,15 +417,22 @@ async fn get_auth_me(
     headers: HeaderMap,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, ResponseError> {
+    let headers_client = header_convert(&headers, &jar, URL_CHATGPT_API)?;
+    // 打印一下headers
+    for (key, value) in headers_client.iter() {
+        println!("{}: {:?}", key, value);
+    }
     let resp = with_context!(api_client)
         .get(format!("{URL_CHATGPT_API}/backend-api/me"))
-        .headers(header_convert(&headers, &jar, URL_CHATGPT_API)?)
+        .headers(headers_client)
         .send()
         .await
         .map_err(ResponseError::InternalServerError)?;
 
     let status = resp.status();
     let headers = resp.headers().clone();
+
+
 
     let bytes = resp
         .bytes()

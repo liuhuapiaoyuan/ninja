@@ -1,6 +1,6 @@
 pub(crate) const EMPTY: &str = "";
 pub(crate) const NULL: &str = "null";
-pub(crate) const HEADER_UA: &str = "okhttp/4.9.1";
+pub(crate) const HEADER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
 
 /// The default API endpoint to use.
 pub(crate) const AUTH_KEY: &str = "auth_key";

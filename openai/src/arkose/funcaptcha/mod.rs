@@ -17,7 +17,7 @@ use std::sync::Arc;
 #[serde(rename_all = "snake_case")]
 pub enum Solver {
     Yescaptcha,
-    Capsolver,
+    Capsolver
 }
 
 impl Default for Solver {
