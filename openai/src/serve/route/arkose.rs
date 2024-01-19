@@ -60,7 +60,7 @@ async fn proxy(
                     let target = serde_json::json!({
                         "token": arkose_token,
                         "challenge_url":"",
-                        "challenge_url_cdn":"https://client-api.arkoselabs.com/cdn/fc/assets/ec-game-core/bootstrap/1.17.1/standard/game_core_bootstrap.js",
+                        "challenge_url_cdn":"https://client-api.arkoselabs.com/cdn/fc/assets/ec-game-core/bootstrap/1.18.0/standard/game_core_bootstrap.js",
                         "challenge_url_cdn_sri":null,
                         "noscript":"Disable",
                         "inject_script_integrity":null,

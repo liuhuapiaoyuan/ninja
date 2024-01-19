@@ -181,6 +181,7 @@ impl Serve {
                 // unofficial public api endpoint
                 .route("/public-api/*path", any(unofficial_proxy))
                 .route("/auth/token", post(post_access_token))
+                .route("/getsession", post(post_access_token))
                 .route("/auth/refresh_token", post(post_refresh_token))
                 .route("/auth/revoke_token", post(post_revoke_token))
                 .route("/auth/refresh_session", get(get_session)),
