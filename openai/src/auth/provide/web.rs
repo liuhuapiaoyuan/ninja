@@ -276,7 +276,8 @@ impl WebAuthProvider {
                             .json::<model::SessionAccessToken>()
                             .await
                             .map_err(AuthError::DeserializeError)?;
-                        session_access_token.session_token = Some(session);
+                        session_access_token.session_token = Some(session.clone());
+                        session_access_token.refresh_cookie = Some(session);
                         Ok(model::AccessToken::Session(session_access_token))
                     }
                     None => {

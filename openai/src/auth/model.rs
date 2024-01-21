@@ -62,6 +62,8 @@ pub struct SessionAccessToken {
     pub access_token: String,
     #[serde(rename = "authProvider")]
     pub auth_provider: String,
+    #[serde(rename = "refreshCookie")]
+    pub refresh_cookie: Option<Session>,
     pub session_token: Option<Session>,
 }
 
