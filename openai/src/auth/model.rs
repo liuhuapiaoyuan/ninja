@@ -33,6 +33,8 @@ impl Display for AuthStrategy {
 pub struct AuthAccount {
     pub username: String,
     pub password: String,
+    #[serde(rename = "refreshCookie")]
+    pub refresh_cookie: Option<String>,
     #[builder(setter(into, strip_option), default)]
     pub mfa: Option<String>,
     #[builder(setter(into, strip_option), default)]

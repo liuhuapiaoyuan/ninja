@@ -314,13 +314,33 @@ async fn post_access_token(
         }
     }
 
-    match with_context!(auth_client).do_access_token(&account).await? {
-        AccessToken::Session(session_token) => {
-            let resp: Response<Body> = session_token.try_into()?;
-            Ok(resp.into_response())
+    if let Some(refresh_cookie_value) = &account.refresh_cookie {
+        let session_token = with_context!(auth_client)
+        .do_session(refresh_cookie_value.as_str())
+        .await
+        .map_err(ResponseError::BadRequest)?;
+
+        match session_token {
+            AccessToken::Session(session_token) => {
+                let resp: Response<Body> = session_token.try_into()?;
+                Ok(resp.into_response())
+            }
+            _ => Err(ResponseError::InternalServerError(
+                ProxyError::SessionNotFound,
+            )),
         }
-        AccessToken::OAuth(c) => Ok(Json(AccessToken::OAuth(c)).into_response()),
+    }else {
+        
+            match with_context!(auth_client).do_access_token(&account).await? {
+                AccessToken::Session(session_token) => {
+                    let resp: Response<Body> = session_token.try_into()?;
+                    Ok(resp.into_response())
+                }
+                AccessToken::OAuth(c) => Ok(Json(AccessToken::OAuth(c)).into_response()),
+            }
+        
     }
+  
 }
 
 /// POST /auth/refresh_token
