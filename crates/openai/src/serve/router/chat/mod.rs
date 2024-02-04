@@ -65,14 +65,21 @@ const LOGIN_INDEX: &str = "/auth/login";
 const SESSION_ID: &str = "session";
 const SESSION_TOKEN_ID: &str = "session_token";
 const PUID_ID: &str = "_puid";
-const BUILD_ID: &str = "eFlZtDCQUjuHAccnRY3au";
+const BUILD_ID: &str = "kAMJ5uXo_RnBLFn2scds_";
 const TEMP_404: &str = "404.htm";
 const TEMP_AUTH: &str = "auth.htm";
-const TEMP_CHAT: &str = "chat.htm";
-const TEMP_DETAIL: &str = "detail.htm";
 const TEMP_LOGIN: &str = "login.htm";
-const TEMP_SHARE: &str = "share.htm";
-
+const TEMP_CHAT: &str = "ui/chat.htm";
+const TEMP_SHARE: &str = "ui/share.htm";
+const TEMP_GPTS: &str = "ui/gpts.htm";
+const TEMP_G: &str = "ui/g.htm";
+const TEMP_GC: &str = "ui/gc.htm";
+const TEMP_SLUG: &str = "ui/slug.htm";
+const TEMP_MINE: &str = "ui/mine.htm";
+const TEMP_DISCOVERY: &str = "ui/discovery.htm";
+const TEMP_EDITOR: &str = "ui/editor.htm";
+const ASSERT_ENDPOINT: &str = "https://oaistatic-cdn.closeai.biz";
+ 
 static TEMPLATE: OnceLock<tera::Tera> = OnceLock::new();
 
 // this function could be located in a different module
@@ -108,15 +115,30 @@ pub(super) fn config(router: Router, args: &Args) -> Router {
         .route("/auth/login/token", post(login_token))
         .route("/auth/logout", get(logout))
         .route("/auth/session", get(session))
+        .route("/api/auth/session", get(session))
         .route("/auth/me", get(auth_me))
         .route("/", get(chat))
         .route("/c", get(chat))
         .route("/c/:conversation_id", get(chat))
         .route("/chat", any(redirect_to_home))
         .route("/chat/:conversation_id", any(redirect_to_home))
+
+        // GPT4 endpoints
+        .route("/g/:gizmo_id", get(gizmo))
+        .route("/g/:gizmo_id/c/:conversation_id", get(gizmo_chat))
+        .route("/gpts", get(gpts))
+        .route("/gpts/discovery", get(gpts_discovery))
+        .route("/gpts/editor", get(gpts_editor))
+        .route("/gpts/editor/:slug_id", get(gpts_editor_slug))
+        .route("/gpts/mine", get(gpts_mine))
+
+
+
         .route("/share/e/:share_id", get(share_chat))
         .route("/share/:share_id", get(share_chat))
         .route("/share/:share_id/continue", get(share_chat_continue))
+
+        // static resource endpoints
         .route(
             &format!("/_next/data/{BUILD_ID}/index.json"),
             get(chat_info),
@@ -421,16 +443,50 @@ async fn chat(
     let template_name = match conversation_id {
         Some(conversation_id) => {
             query.insert("default".to_string(), format!("[c, {}]", conversation_id.0));
-            TEMP_DETAIL
+            TEMP_CHAT
         }
         None => TEMP_CHAT,
     };
     let props = props::chat_props(&s.session, query).to_string();
     let mut ctx = tera::Context::new();
+
+     
+
+    
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
     ctx.insert("props", &props);
     settings_template_data(&mut ctx);
     return render_template(template_name, &ctx);
 }
+/// Conversation chat with Gizmo
+async fn gizmo(
+    Path((gizmo_id,)): Path<(String,)>,
+    mut query: Query<HashMap<String, String>>,
+    s: SessionExt,
+) -> Result<Response<Body>, ResponseError> { 
+    query.insert("gizmoId".to_string(), format!("{}", gizmo_id));
+    let props = props::chat_gizmo_props(&s.session, query).to_string();
+    let mut ctx = tera::Context::new();
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    return render_template(TEMP_G, &ctx);
+}
+async fn gizmo_chat(
+    Path((gizmo_id, conversation_id)): Path<(String, String)>,
+    mut query: Query<HashMap<String, String>>,
+    s: SessionExt,
+) -> Result<Response<Body>, ResponseError> { 
+    query.insert("gizmoId".to_string(), format!("{}", gizmo_id));
+    query.insert("convId".to_string(), format!("{}", conversation_id));
+    let props = props::chat_gizmo_chat_props(&s.session, query).to_string();
+    let mut ctx = tera::Context::new();
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    return render_template(TEMP_GC, &ctx);
+}
+ 
 
 /// Get conversation chat info
 async fn chat_info(s: SessionExt) -> Result<Response<Body>, ResponseError> {
@@ -486,6 +542,69 @@ async fn share_chat(
         }
     };
 }
+
+/// Get gpts
+async fn gpts(s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    let mut ctx = tera::Context::new();
+    let props = props::gpts_props(&s.session).to_string();
+    
+
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    render_template(TEMP_GPTS, &ctx)
+}
+
+/// Get gpts Discovery
+async fn gpts_discovery(s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    let mut ctx = tera::Context::new();
+    let props = props::gpts_discovery_props(&s.session).to_string();
+    
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    render_template(TEMP_DISCOVERY, &ctx)
+}
+
+/// Get gpts Editor
+async fn gpts_editor(s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    let mut ctx = tera::Context::new();
+    let props  = props::gpts_editor_props(&s.session).to_string();
+    
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    render_template(TEMP_EDITOR, &ctx)
+}
+/// Get gpts Editor slug
+async fn gpts_editor_slug(
+    slug_id:Path<String>,
+    mut query: Query<HashMap<String, String>>,
+    s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    query.insert("slug".to_string(), format!("{}", slug_id.0));
+    
+    let mut ctx = tera::Context::new();
+     
+    let props = props::gpts_eidtor_slug_props(&s.session , query).to_string() ;
+    
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    render_template(TEMP_SLUG, &ctx)
+}
+
+
+/// Get gpts  mine
+async fn gpts_mine(s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    let mut ctx = tera::Context::new();
+    let props = props::gpts_mine_props(&s.session).to_string();
+    
+    ctx.insert("assetPrefix", ASSERT_ENDPOINT);
+    ctx.insert("props", &props);
+    settings_template_data(&mut ctx);
+    render_template(TEMP_MINE, &ctx)
+}
+
 
 /// Get conversation share chat info
 async fn share_chat_info(
@@ -612,6 +731,14 @@ fn render_template(name: &str, context: &tera::Context) -> Result<Response<Body>
             tera.add_raw_templates(vec![
                 (TEMP_AUTH, include_str!("../../../../frontend/auth.htm")),
                 (TEMP_LOGIN, include_str!("../../../../frontend/login.htm")),
+                (TEMP_CHAT, include_str!("../../../../frontend/ui/chat.htm")),
+                (TEMP_GPTS, include_str!("../../../../frontend/ui/gpts.htm")),
+                (TEMP_G, include_str!("../../../../frontend/ui/g.htm")),
+                (TEMP_GC, include_str!("../../../../frontend/ui/gc.htm")),
+                (TEMP_SLUG, include_str!("../../../../frontend/ui/slug.htm")),
+                (TEMP_MINE, include_str!("../../../../frontend/ui/mine.htm")),
+                (TEMP_DISCOVERY, include_str!("../../../../frontend/ui/discovery.htm")),
+                (TEMP_EDITOR, include_str!("../../../../frontend/ui/editor.htm")),
             ])
             .expect("The static template failed to load");
             tera
@@ -645,8 +772,24 @@ fn settings_template_data(ctx: &mut tera::Context) {
         ctx.insert(SUPPORT_APPLE, EMPTY);
     });
 
+ 
     // If the arkose endpoint is not empty, well enable the arkose captcha
     context
         .arkose_endpoint()
         .map(|arkose_endpoint| ctx.insert(ARKOSE_ENDPOINT, arkose_endpoint));
+
+        context.arkose_endpoint().map(|arkose_endpoint| {
+            // 这里可以执行多行复杂逻辑
+            let script = format!(
+                " <script> 
+                window.__arkoseUrl= \"{}\";
+                window.__assetPrefix=\"{}\";
+                </script>", arkose_endpoint, ASSERT_ENDPOINT
+            );
+            // 假设ctx.insert可以接受String类型
+            ctx.insert("envScript".to_string(), &script)
+        });
+        
+
+
 }

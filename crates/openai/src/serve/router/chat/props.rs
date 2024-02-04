@@ -63,6 +63,78 @@ pub fn chat_props(s: &Session, query: Query<HashMap<String, String>>) -> Value {
     })
 }
 
+/// Create a JSON object with the chat gizmo properties.
+pub fn chat_gizmo_props(s: &Session, query: Query<HashMap<String, String>>) -> Value {
+    serde_json::json!({
+        "props": {
+            "pageProps": {
+                "userCountry": "US",
+                "user": {
+                    "id": s.user_id,
+                    "name": s.email,
+                    "email": s.email,
+                    "image": null,
+                    "picture": null,
+                    "groups": [],
+                },
+                "ageVerificationDeadline": null,
+                "canManageBrowserStorage": false,
+                "gizmo": null,
+                "kind": "chat_page",
+                "serverPrimedAllowBrowserStorageValue": true,
+                "serviceAnnouncement": {
+                    "paid": {},
+                    "public": {}
+                },
+                "serviceStatus": {},
+                "showCookieConsentBanner": false,
+            },
+            "__N_SSP": true
+        },
+        "page": "/g/[gizmoId]",
+        "query": query.0,
+        "buildId": BUILD_ID,
+        "assetPrefix": "https://cdn.oaistatic.com",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": []
+    })
+}
+pub fn chat_gizmo_chat_props(s: &Session, query: Query<HashMap<String, String>>) -> Value {
+    serde_json::json!({
+        "props": {
+            "pageProps": {
+                "userCountry": "US",
+                "user": {
+                    "id": s.user_id,
+                    "name": s.email,
+                    "email": s.email,
+                    "image": null,
+                    "picture": null,
+                    "groups": [],
+                },
+                "ageVerificationDeadline": null,
+                "canManageBrowserStorage": false,
+                "serverPrimedAllowBrowserStorageValue": true,
+                "serviceAnnouncement": {
+                    "paid": {},
+                    "public": {}
+                },
+                "serviceStatus": {},
+                "showCookieConsentBanner": false,
+            },
+            "__N_SSP": true
+        },
+        "page": "/g/[gizmoId]/c/[convId]",
+        "query": query.0,
+        "buildId": BUILD_ID,
+        "assetPrefix": "https://cdn.oaistatic.com",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": []
+    })
+}
+
 /// Create a JSON object with the chat info properties.
 pub fn chat_info_props(session: &Session) -> Value {
     serde_json::json!({
@@ -85,6 +157,185 @@ pub fn chat_info_props(session: &Session) -> Value {
             "isUserInCanPayGroup": true
         },
         "__N_SSP": true
+    })
+}
+/// Create a JSON object with the gpts properties.
+pub fn gpts_props(session: &Session) -> Value {
+ 
+    serde_json::json!({
+        "page": "/gpts",
+        "query": {},
+        "buildId": BUILD_ID,
+        "assetPrefix": "",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": [],
+       "props":{
+        "pageProps": {
+            "user": {
+                "id": session.user_id,
+                "name": session.email,
+                "email": session.email,
+                "image": null,
+                "picture": null,
+                "groups": [],
+            },
+            
+            "userCountry": "US",
+            "geoOk": true,
+            "serviceStatus": {},
+            "userCountry": "US",
+            "serviceAnnouncement": { "public": {}, "paid": {} },
+            "serverPrimedAllowBrowserStorageValue": true,
+            "canManageBrowserStorage": false,
+            "ageVerificationDeadline": null,
+            "showCookieConsentBanner": false
+        },
+        "__N_SSP": true
+       }
+    })
+}
+/// Create a JSON object with the gpts Discovery properties.
+pub fn gpts_discovery_props(session: &Session) -> Value {
+ 
+    serde_json::json!({
+        "page": "/gpts/discovery",
+        "query": {},
+        "buildId": BUILD_ID,
+        "assetPrefix": "",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": [] ,
+       "props":{
+        "pageProps": {
+            "user": {
+                "id": session.user_id,
+                "name": session.email,
+                "email": session.email,
+                "image": null,
+                "picture": null,
+                "groups": [],
+            },
+            
+            "userCountry": "US",
+            "geoOk": true,
+            "serviceStatus": {},
+            "userCountry": "US",
+            "serviceAnnouncement": { "public": {}, "paid": {} },
+            "serverPrimedAllowBrowserStorageValue": true,
+            "canManageBrowserStorage": false,
+            "ageVerificationDeadline": null,
+            "showCookieConsentBanner": false
+        },
+        "__N_SSP": true
+       }
+    })
+}
+/// Create a JSON object with the gpts Editor properties.
+pub fn gpts_editor_props(session: &Session) -> Value {
+ 
+    serde_json::json!({
+        "page": "/gpts/editor",
+        "query": {},
+        "buildId": BUILD_ID,
+        "assetPrefix": "",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": [] ,
+       "props":{
+        "pageProps": {
+            "user": {
+                "id": session.user_id,
+                "name": session.email,
+                "email": session.email,
+                "image": null,
+                "picture": null,
+                "groups": [],
+            },
+            
+            "userCountry": "US",
+            "geoOk": true,
+            "serviceStatus": {},
+            "userCountry": "US",
+            "serviceAnnouncement": { "public": {}, "paid": {} },
+            "serverPrimedAllowBrowserStorageValue": true,
+            "canManageBrowserStorage": false,
+            "ageVerificationDeadline": null,
+            "showCookieConsentBanner": false
+        },
+        "__N_SSP": true
+       }
+    })
+}
+///  Create a JSON object with the gpts Mine properties.
+pub fn gpts_mine_props(session: &Session) -> Value {
+ 
+    serde_json::json!({
+        "page": "/gpts/mine",
+        "query": {},
+        "buildId": BUILD_ID,
+        "assetPrefix": "",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": [] ,
+       "props":{
+        "pageProps": {
+            "user": {
+                "id": session.user_id,
+                "name": session.email,
+                "email": session.email,
+                "image": null,
+                "picture": null,
+                "groups": [],
+            },
+            
+            "userCountry": "US",
+            "geoOk": true,
+            "serviceStatus": {},
+            "userCountry": "US",
+            "serviceAnnouncement": { "public": {}, "paid": {} },
+            "serverPrimedAllowBrowserStorageValue": true,
+            "canManageBrowserStorage": false,
+            "ageVerificationDeadline": null,
+            "showCookieConsentBanner": false
+        },
+        "__N_SSP": true
+       }
+    })
+}
+pub fn gpts_eidtor_slug_props(session: &Session , query: Query<HashMap<String, String>>) -> Value {
+ 
+    serde_json::json!({
+        "page": "/gpts/editor/[slug]",
+        "query": query.0,
+        "buildId": BUILD_ID,
+        "assetPrefix": "",
+        "isFallback": false,
+        "gssp": true,
+        "scriptLoader": [] ,
+       "props":{
+        "pageProps": {
+            "user": {
+                "id": session.user_id,
+                "name": session.email,
+                "email": session.email,
+                "image": null,
+                "picture": null,
+                "groups": [],
+            },
+            
+            "userCountry": "US",
+            "geoOk": true,
+            "serviceStatus": {},
+            "userCountry": "US",
+            "serviceAnnouncement": { "public": {}, "paid": {} },
+            "serverPrimedAllowBrowserStorageValue": true,
+            "canManageBrowserStorage": false,
+            "ageVerificationDeadline": null,
+            "showCookieConsentBanner": false
+        },
+        "__N_SSP": true
+       }
     })
 }
 

@@ -11,9 +11,11 @@
     "customizations": {
       "vscode": {
         "extensions": [
-          "rust-lang.rust",
-          "rust-lang.rust-analyzer",
-          "dustypomerleau.rust-syntax"
+            "rust-lang.rust-analyzer",
+            "dustypomerleau.rust-syntax",
+            "chunsen.bracket-select",
+            "FittenTech.Fitten-Code",
+            "tamasfe.even-better-toml"
         ]
       }
     },
@@ -22,7 +24,6 @@
       "TZ": "Asia/Shanghai"
     },
     "postCreateCommand": "cargo build",
-    "remoteUser": "root" , 
     "features":{
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     }
