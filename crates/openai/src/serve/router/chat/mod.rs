@@ -132,6 +132,12 @@ pub(super) fn config(router: Router, args: &Args) -> Router {
         .route("/gpts/editor/:slug_id", get(gpts_editor_slug))
         .route("/gpts/mine", get(gpts_mine))
 
+        // gizmo con
+        .route(
+            // /_next/data/g/c{conversation_id}.json
+            &format!("/_next/data/{BUILD_ID}/g/:gizmo_id/c/:conversation_id"),
+            get(gizmo_chat_info),
+        )
 
 
         .route("/share/e/:share_id", get(share_chat))
@@ -490,6 +496,15 @@ async fn gizmo_chat(
 
 /// Get conversation chat info
 async fn chat_info(s: SessionExt) -> Result<Response<Body>, ResponseError> {
+    let props = props::chat_info_props(&s.session);
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+        .body(Body::from(props.to_string()))
+        .map_err(ResponseError::InternalServerError)?)
+}
+/// Get Gizmo conversation chat info
+async fn gizmo_chat_info(s: SessionExt) -> Result<Response<Body>, ResponseError> {
     let props = props::chat_info_props(&s.session);
     Ok(Response::builder()
         .status(StatusCode::OK)
