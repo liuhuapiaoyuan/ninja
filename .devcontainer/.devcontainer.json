@@ -22,5 +22,8 @@
       "TZ": "Asia/Shanghai"
     },
     "postCreateCommand": "cargo build",
-    "remoteUser": "root"
+    "remoteUser": "root" , 
+    "features":{
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    }
   }
