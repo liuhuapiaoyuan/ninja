@@ -170,7 +170,7 @@ pub struct ServeArgs {
     pub(super) visitor_email_whitelist: Option<std::vec::Vec<String>>,
 
     /// Arkose endpoint, e.g. https://client-api.arkoselabs.com
-    #[clap(long, value_parser = parse::parse_url, requires = "enable_webui")]
+    #[clap(long, value_parser = parse::parse_url)]
     pub(super) arkose_endpoint: Option<String>,
 
     /// Enable Arkose GPT-3.5 experiment

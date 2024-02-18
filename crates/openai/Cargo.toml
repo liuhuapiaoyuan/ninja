@@ -1,7 +1,8 @@
 [package]
 name = "openai"
-version = "0.9.25"
+version = "0.9.28"
 edition = "2021"
+rust-version = "1.75.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,11 +20,9 @@ tokio = { version = "1.35.1", features = ["fs", "sync", "signal", "rt-multi-thre
 serde_json = "1.0.107"
 serde = {version = "1.0.188", features = ["derive"] }
 regex = "1.9.5"
-async-recursion = "1.0.5"
 url = { version = "2.5.0", features = ["serde"] }
 base64 = "0.21.4"
 rand = "0.8.5"
-async-trait = "0.1.73"
 typed-builder = "0.18.0"
 jsonwebtokens = "1.2.0"
 sha2 = "0.10.7"
@@ -70,6 +69,7 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"], optional =
 async-stream = { version = "0.3.5", optional = true }
 axum_csrf = { version = "0.8.0", features = ["layer"], optional = true }
 serde_urlencoded = { version = "0.7.1", optional = true }
+trait-variant = "0.1.1"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 nix = { version = "0.27.1", default-features = false, features = ["user"] }

@@ -1,17 +1,15 @@
-use async_trait::async_trait;
 use hyper::{Body, Request, Response};
 use std::sync::{Arc, RwLock};
 use wildmatch::WildMatch;
 
 use super::mitm::RequestOrResponse;
 
-#[async_trait]
 pub trait HttpHandler: Clone + Send + Sync + 'static {
-    async fn handle_request(&self, req: Request<Body>) -> RequestOrResponse {
+    fn handle_request(&self, req: Request<Body>) -> RequestOrResponse {
         RequestOrResponse::Request(req)
     }
 
-    async fn handle_response(&self, res: Response<Body>) -> Response<Body> {
+    fn handle_response(&self, res: Response<Body>) -> Response<Body> {
         res
     }
 }

@@ -10,16 +10,15 @@ use std::fmt::Write;
 #[derive(Clone)]
 pub struct PreAuthHanlder;
 
-#[async_trait::async_trait]
 impl HttpHandler for PreAuthHanlder {
-    async fn handle_request(&self, req: Request<Body>) -> RequestOrResponse {
-        log_req(&req).await;
+    fn handle_request(&self, req: Request<Body>) -> RequestOrResponse {
+        log_req(&req);
         collect_preauth_cookie(req.headers());
         RequestOrResponse::Request(req)
     }
 
-    async fn handle_response(&self, res: Response<Body>) -> Response<Body> {
-        log_res(&res).await;
+    fn handle_response(&self, res: Response<Body>) -> Response<Body> {
+        log_res(&res);
         collect_preauth_cookie(res.headers());
         res
     }
@@ -36,7 +35,7 @@ fn collect_preauth_cookie(headers: &HeaderMap<HeaderValue>) {
     }
 }
 
-pub async fn log_req(req: &Request<Body>) {
+pub fn log_req(req: &Request<Body>) {
     let headers = req.headers();
     let mut header_formated = String::new();
     for (key, value) in headers {
@@ -65,7 +64,7 @@ Headers:
     )
 }
 
-pub async fn log_res(res: &Response<Body>) {
+pub fn log_res(res: &Response<Body>) {
     let headers = res.headers();
     let mut header_formated = String::new();
     for (key, value) in headers {

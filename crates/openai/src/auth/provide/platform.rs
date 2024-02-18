@@ -6,7 +6,6 @@ use crate::auth::{
     OPENAI_OAUTH_REVOKE_URL, OPENAI_OAUTH_TOKEN_URL, OPENAI_OAUTH_URL,
 };
 use crate::warn;
-use async_recursion::async_recursion;
 use axum::http::HeaderValue;
 use reqwest::Client;
 use url::Url;
@@ -19,13 +18,10 @@ use super::{
 const PLATFORM_CLIENT_ID: &str = "DRivsnm2Mu42T3KOpqdtwB3NYviHYzwD";
 const OPENAI_OAUTH_PLATFORM_CALLBACK_URL: &str = "https://platform.openai.com/auth/callback";
 
-pub(crate) struct PlatformAuthProvider(pub(crate) Client);
+#[derive(Clone)]
+pub(crate) struct PlatformAuthProvider(pub Client);
 
 impl PlatformAuthProvider {
-    pub fn new(inner: Client) -> impl AuthProvider + Send + Sync {
-        Self(inner)
-    }
-
     async fn authorize(&self, ctx: &mut RequestContext<'_>) -> AuthResult<()> {
         // Build url
         let url = format!("{OPENAI_OAUTH_URL}/authorize?client_id={PLATFORM_CLIENT_ID}&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&audience=https://api.openai.com/v1&redirect_uri=https://platform.openai.com/auth/callback&response_type=code");
@@ -165,7 +161,6 @@ impl PlatformAuthProvider {
         Err(AuthError::FailedCallbackURL)
     }
 
-    #[async_recursion]
     async fn authenticate_mfa(
         &self,
         ctx: &mut RequestContext<'_>,
@@ -211,7 +206,28 @@ impl PlatformAuthProvider {
         if location.starts_with("/authorize/resume?") && ctx.account.mfa.is_none() {
             return Err(AuthError::MFAFailed);
         }
-        self.authenticate_resume(ctx, location).await
+
+        let resp = self
+            .0
+            .get(&format!("{OPENAI_OAUTH_URL}{location}"))
+            .ext_context(ctx)
+            .send()
+            .await
+            .map_err(AuthError::FailedRequest)?
+            .ext_context(ctx);
+
+        // maybe auth failed
+        let _ = AuthClient::check_auth_callback_state(resp.url())?;
+
+        // Get location path
+        let location: &str = AuthClient::get_location_path(&resp.headers())?;
+
+        // If location path starts with https://platform.openai.com/auth/callback
+        if location.starts_with(OPENAI_OAUTH_PLATFORM_CALLBACK_URL) {
+            return self.authorization_code(location).await;
+        }
+
+        Err(AuthError::FailedCallbackURL)
     }
 
     async fn authorization_code(&self, location: &str) -> AuthResult<model::AccessToken> {
@@ -242,9 +258,8 @@ impl PlatformAuthProvider {
     }
 }
 
-#[async_trait::async_trait]
 impl AuthProvider for PlatformAuthProvider {
-    fn supports(&self, t: &AuthStrategy) -> bool {
+    fn support(&self, t: &AuthStrategy) -> bool {
         t.eq(&AuthStrategy::Platform)
     }
 

@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 pub mod arkose;
 pub mod auth;
 pub mod chatgpt;

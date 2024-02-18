@@ -15,9 +15,9 @@
 
 # ninja
 
-逆向工程的 `ChatGPT` 代理（绕过 Cloudflare 403 Access Denied）
+逆向工程的 `ChatGPT` 代理
 
-> 由于`ArkoseLabs`不断地更新修复，项目将应用闭源补丁进行发布，如果你担心安全问题，请你不要使用它。
+> 项目已闭源发布。
 
 ### 特性
 
@@ -30,7 +30,7 @@
 
 ### 安装
 
-如果您需要更详细的安装与使用信息，请查看[文档](https://github.com/gngpp/ninja/blob/main/doc/readme_zh.md)
+如果您需要更详细的安装与使用信息，请查看[wiki](https://github.com/gngpp/ninja/wiki)
 
 ### 贡献
 

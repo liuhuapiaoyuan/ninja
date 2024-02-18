@@ -25,7 +25,7 @@ use crate::dns;
 use crate::proxy::{InnerProxy, Proxy};
 use crate::serve::error::ProxyError;
 use crate::serve::error::ResponseError;
-use crate::serve::middleware::tokenbucket::{Strategy, TokenBucketLimitContext};
+use crate::serve::middleware::tokenbucket::{Strategy, TokenBucketProvider};
 use crate::{info, warn, with_context};
 use crate::{URL_CHATGPT_API, URL_PLATFORM_API};
 use axum::body::Body;
@@ -158,7 +158,7 @@ impl Serve {
 
         // init auth layer provider
         let app_layer = {
-            let limit_context = TokenBucketLimitContext::from((
+            let limit_context = TokenBucketProvider::from((
                 Strategy::from_str(self.0.tb_strategy.as_str())?,
                 self.0.tb_enable,
                 self.0.tb_capacity,

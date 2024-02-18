@@ -16,9 +16,9 @@
 
 # ninja
 
-Reverse engineered `ChatGPT` proxy (bypass Cloudflare 403 Access Denied)
+Reverse engineered `ChatGPT` proxy
 
-> Since `ArkoseLabs` is constantly updated and fixed, the project will be released with closed source patches. If you are worried about security issues, please do not use it.
+> The project has been released as closed source.
 
 ### Features
 
@@ -31,22 +31,7 @@ Reverse engineered `ChatGPT` proxy (bypass Cloudflare 403 Access Denied)
 
 ### Installation
 
-If you need more detailed installation and usage information, please check [Document](https://github.com/gngpp/ninja/blob/main/doc/readme.md)
-
-- Platform
-
-  - `x86_64-unknown-linux-musl`
-  - `aarch64-unknown-linux-musl`
-  - `armv7-unknown-linux-musleabi`
-  - `armv7-unknown-linux-musleabihf`
-  - `arm-unknown-linux-musleabi`
-  - `arm-unknown-linux-musleabihf`
-  - `armv5te-unknown-linux-musleabi`
-  - `i686-unknown-linux-gnu`
-  - `i586-unknown-linux-gnu`
-  - `x86_64-pc-windows-msvc`
-  - `x86_64-apple-darwin`
-  - `aarch64-apple-darwin`
+If you need more detailed installation and usage information, please check [wiki](https://github.com/gngpp/ninja/wiki)
 
 ### Contributing
 

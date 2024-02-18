@@ -577,7 +577,7 @@ async fn submit_funcaptcha(
             for data in classified_data {
                 let images_chunks = data
                     .1
-                    .chunks(arkose_solver.limit)
+                    .chunks(arkose_solver.limit.max(1))
                     .map(|item| {
                         item.iter()
                             .map(|item| &item.image)

@@ -7,9 +7,8 @@ use std::time::Duration;
 use crate::homedir::home_dir;
 use crate::{context, debug, error, now_duration};
 
-#[async_trait::async_trait]
 pub trait TokenBucket: Send + Sync {
-    async fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool>;
+    fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool>;
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -68,9 +67,8 @@ impl MemTokenBucket {
     }
 }
 
-#[async_trait::async_trait]
 impl TokenBucket for MemTokenBucket {
-    async fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
+    fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
         if !self.enable {
             return Ok(true);
         }
@@ -212,9 +210,8 @@ fn clear_expired_buckets_every(db: Arc<Database<'static>>, expired: u32) {
     });
 }
 
-#[async_trait::async_trait]
-impl<'a> TokenBucket for RedisTokenBucket<'_> {
-    async fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
+impl TokenBucket for RedisTokenBucket<'_> {
+    fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
         if !self.enable {
             return Ok(true);
         }
@@ -278,25 +275,27 @@ fn ip_to_number(ip: IpAddr) -> u128 {
     }
 }
 
-pub struct TokenBucketLimitContext(Box<dyn TokenBucket>);
+pub enum TokenBucketProvider {
+    Mem(MemTokenBucket),
+    ReDB(RedisTokenBucket<'static>),
+}
 
-impl From<(Strategy, bool, u32, u32, u32)> for TokenBucketLimitContext {
+impl From<(Strategy, bool, u32, u32, u32)> for TokenBucketProvider {
     fn from(value: (Strategy, bool, u32, u32, u32)) -> Self {
         let strategy = match value.0 {
-            Strategy::Mem => Self(Box::new(MemTokenBucket::new(
-                value.1, value.2, value.3, value.4,
-            ))),
-            Strategy::ReDB => Self(Box::new(RedisTokenBucket::new(
-                value.1, value.2, value.3, value.4,
-            ))),
+            Strategy::Mem => Self::Mem(MemTokenBucket::new(value.1, value.2, value.3, value.4)),
+            Strategy::ReDB => Self::ReDB(RedisTokenBucket::new(value.1, value.2, value.3, value.4)),
         };
         strategy
     }
 }
 
-#[async_trait::async_trait]
-impl TokenBucket for TokenBucketLimitContext {
-    async fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
-        Ok(self.0.acquire(ip).await?)
+impl TokenBucket for TokenBucketProvider {
+    fn acquire(&self, ip: IpAddr) -> anyhow::Result<bool> {
+        let condition = match self {
+            Self::Mem(t) => t.acquire(ip),
+            Self::ReDB(t) => t.acquire(ip),
+        };
+        Ok(condition?)
     }
 }

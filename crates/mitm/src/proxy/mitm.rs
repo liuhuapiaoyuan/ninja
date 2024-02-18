@@ -93,7 +93,7 @@ where
         };
 
         // Proxy request
-        let mut req = match self.http_handler.handle_request(req).await {
+        let mut req = match self.http_handler.handle_request(req) {
             RequestOrResponse::Request(req) => req,
             RequestOrResponse::Response(res) => return Ok(res),
         };
@@ -116,7 +116,7 @@ where
             }
         };
 
-        let mut res = self.http_handler.handle_response(res).await;
+        let mut res = self.http_handler.handle_response(res);
         let length = res.size_hint().lower();
 
         {

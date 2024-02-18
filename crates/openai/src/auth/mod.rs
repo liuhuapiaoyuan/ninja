@@ -18,7 +18,7 @@ use serde::de::DeserializeOwned;
 
 use base64::{engine::general_purpose, Engine as _};
 use rand::Rng;
-use reqwest::{Client, Proxy, StatusCode, Url};
+use reqwest::{Client, ClientBuilder, Proxy, StatusCode, Url};
 use sha2::{Digest, Sha256};
 use tokio::sync::OnceCell;
 
@@ -30,6 +30,7 @@ use error::AuthError;
 use self::model::{ApiKeyData, AuthStrategy};
 #[cfg(feature = "preauth")]
 use self::provide::apple::AppleAuthProvider;
+use self::provide::apple::PreAuthProvider;
 use self::provide::platform::PlatformAuthProvider;
 use self::provide::web::WebAuthProvider;
 use self::provide::{AuthProvider, AuthResult};
@@ -48,7 +49,7 @@ static EMAIL_REGEX: OnceCell<Regex> = OnceCell::const_new();
 #[derive(Clone)]
 pub struct AuthClient {
     inner: Client,
-    providers: Arc<Vec<Box<dyn AuthProvider + Send + Sync>>>,
+    providers: Vec<Prividers>,
 }
 
 impl AuthClient {
@@ -265,10 +266,9 @@ impl AuthClient {
     }
 }
 
-#[async_trait::async_trait]
 impl AuthProvider for AuthClient {
-    fn supports(&self, t: &AuthStrategy) -> bool {
-        self.providers.iter().any(|strategy| strategy.supports(t))
+    fn support(&self, t: &AuthStrategy) -> bool {
+        self.providers.iter().any(|strategy| strategy.support(t))
     }
 
     async fn do_access_token(
@@ -288,7 +288,7 @@ impl AuthProvider for AuthClient {
 
         // Try supported providers
         for provider in self.providers.iter() {
-            if provider.supports(&account.option) {
+            if provider.support(&account.option) {
                 return provider.do_access_token(account).await;
             }
         }
@@ -299,7 +299,7 @@ impl AuthProvider for AuthClient {
     async fn do_revoke_token(&self, refresh_token: &str) -> AuthResult<()> {
         let mut result: Option<AuthResult<()>> = None;
         for handle in self.providers.iter() {
-            if handle.supports(&AuthStrategy::Apple) || handle.supports(&AuthStrategy::Platform) {
+            if handle.support(&AuthStrategy::Apple) || handle.support(&AuthStrategy::Platform) {
                 let res = handle.do_revoke_token(refresh_token).await;
                 match res {
                     Ok(ok) => {
@@ -320,7 +320,7 @@ impl AuthProvider for AuthClient {
         let mut result: Option<AuthResult<model::RefreshToken>> = None;
 
         for handle in self.providers.iter() {
-            if handle.supports(&AuthStrategy::Apple) || handle.supports(&AuthStrategy::Platform) {
+            if handle.support(&AuthStrategy::Apple) || handle.support(&AuthStrategy::Platform) {
                 let res = handle.do_refresh_token(refresh_token).await;
                 match res {
                     Ok(ok) => {
@@ -338,19 +338,17 @@ impl AuthProvider for AuthClient {
     }
 }
 
-pub struct AuthClientBuilder {
-    inner: reqwest::ClientBuilder,
-}
+pub struct AuthClientBuilder(ClientBuilder);
 
 impl AuthClientBuilder {
     // Proxy options
     pub fn proxy(mut self, proxy: Option<Url>) -> Self {
         if let Some(url) = proxy {
-            self.inner = self
-                .inner
+            self.0 = self
+                .0
                 .proxy(Proxy::all(url).expect("reqwest: invalid proxy url"));
         } else {
-            self.inner = self.inner.no_proxy();
+            self.0 = self.0.no_proxy();
         }
         self
     }
@@ -364,7 +362,7 @@ impl AuthClientBuilder {
     ///
     /// Default is no timeout.
     pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.inner = self.inner.timeout(timeout);
+        self.0 = self.0.timeout(timeout);
         self
     }
 
@@ -377,7 +375,7 @@ impl AuthClientBuilder {
     /// This **requires** the futures be executed in a tokio runtime with
     /// a tokio timer enabled.
     pub fn connect_timeout(mut self, timeout: Duration) -> Self {
-        self.inner = self.inner.connect_timeout(timeout);
+        self.0 = self.0.connect_timeout(timeout);
         self
     }
 
@@ -392,13 +390,13 @@ impl AuthClientBuilder {
     where
         D: Into<Option<Duration>>,
     {
-        self.inner = self.inner.pool_idle_timeout(val);
+        self.0 = self.0.pool_idle_timeout(val);
         self
     }
 
     /// Sets the maximum idle connection per host allowed in the pool.
     pub fn pool_max_idle_per_host(mut self, max: usize) -> Self {
-        self.inner = self.inner.pool_max_idle_per_host(max);
+        self.0 = self.0.pool_max_idle_per_host(max);
         self
     }
 
@@ -409,19 +407,19 @@ impl AuthClientBuilder {
     where
         D: Into<Option<Duration>>,
     {
-        self.inner = self.inner.tcp_keepalive(val);
+        self.0 = self.0.tcp_keepalive(val);
         self
     }
 
     /// Sets the necessary values to mimic the specified impersonate client version.
     pub fn impersonate(mut self, ver: Impersonate) -> Self {
-        self.inner = self.inner.impersonate(ver);
+        self.0 = self.0.impersonate(ver);
         self
     }
 
     /// Sets the `User-Agent` header to be used by this client.
     pub fn user_agent(mut self, value: &str) -> Self {
-        self.inner = self.inner.user_agent(value);
+        self.0 = self.0.user_agent(value);
         self
     }
 
@@ -430,14 +428,14 @@ impl AuthClientBuilder {
     where
         T: Into<Option<IpAddr>>,
     {
-        self.inner = self.inner.local_address(addr);
+        self.0 = self.0.local_address(addr);
         self
     }
 
     /// Set that all sockets are bound to the configured IPv4 or IPv6 address (depending on host's
     /// preferences) before connection.
     pub fn local_addresses(mut self, addr_ipv4: Ipv4Addr, addr_ipv6: Ipv6Addr) -> Self {
-        self.inner = self.inner.local_addresses(addr_ipv4, addr_ipv6);
+        self.0 = self.0.local_addresses(addr_ipv4, addr_ipv6);
         self
     }
 
@@ -447,31 +445,31 @@ impl AuthClientBuilder {
     /// Overrides for specific names passed to `resolve` and `resolve_to_addrs` will
     /// still be applied on top of this resolver.
     pub fn dns_resolver<R: Resolve + 'static>(mut self, resolver: Arc<R>) -> Self {
-        self.inner = self.inner.dns_resolver(resolver);
+        self.0 = self.0.dns_resolver(resolver);
         self
     }
 
     /// Controls the use of certificate validation.
     pub fn danger_accept_invalid_certs(mut self, enable: bool) -> Self {
-        self.inner = self.inner.danger_accept_invalid_certs(enable);
+        self.0 = self.0.danger_accept_invalid_certs(enable);
         self
     }
 
     /// Enable Encrypted Client Hello (Secure SNI)
     pub fn enable_ech_grease(mut self, enable: bool) -> Self {
-        self.inner = self.inner.enable_ech_grease(enable);
+        self.0 = self.0.enable_ech_grease(enable);
         self
     }
 
     /// Enable TLS permute_extensions
     pub fn permute_extensions(mut self, enable: bool) -> Self {
-        self.inner = self.inner.permute_extensions(enable);
+        self.0 = self.0.permute_extensions(enable);
         self
     }
 
     pub fn build(self) -> AuthClient {
         let client = self
-            .inner
+            .0
             .default_headers({
                 let mut headers = HeaderMap::new();
                 headers.insert(header::ORIGIN, HeaderValue::from_static(OPENAI_OAUTH_URL));
@@ -481,21 +479,77 @@ impl AuthClientBuilder {
             .build()
             .expect("ClientBuilder::build()");
 
-        let mut providers: Vec<Box<dyn AuthProvider + Send + Sync>> = Vec::with_capacity(3);
-        providers.push(Box::new(WebAuthProvider::new(client.clone())));
-        providers.push(Box::new(PlatformAuthProvider::new(client.clone())));
+        let mut providers = Vec::with_capacity(3);
+
+        // Web Login privider
+        providers.push(Prividers::Web(WebAuthProvider(client.clone())));
+
+        // Apple Login privider
         #[cfg(feature = "preauth")]
-        providers.push(Box::new(AppleAuthProvider::new(client.clone())));
+        providers.push(Prividers::Apple(AppleAuthProvider {
+            inner: client.clone(),
+            preauth_provider: PreAuthProvider,
+        }));
+
+        // Platform Login privider
+        providers.push(Prividers::Platform(PlatformAuthProvider(client.clone())));
 
         AuthClient {
             inner: client,
-            providers: Arc::new(providers),
+            providers,
         }
     }
 
     pub fn builder() -> AuthClientBuilder {
-        AuthClientBuilder {
-            inner: Client::builder().redirect(Policy::none()),
+        AuthClientBuilder(Client::builder().redirect(Policy::none()))
+    }
+}
+
+#[derive(Clone)]
+pub(crate) enum Prividers {
+    Web(WebAuthProvider),
+    #[cfg(feature = "preauth")]
+    Apple(AppleAuthProvider),
+    Platform(PlatformAuthProvider),
+}
+
+impl AuthProvider for Prividers {
+    fn support(&self, t: &AuthStrategy) -> bool {
+        match self {
+            Prividers::Web(provider) => provider.support(t),
+            #[cfg(feature = "preauth")]
+            Prividers::Apple(provider) => provider.support(t),
+            Prividers::Platform(provider) => provider.support(t),
+        }
+    }
+
+    async fn do_access_token(
+        &self,
+        account: &model::AuthAccount,
+    ) -> AuthResult<model::AccessToken> {
+        match self {
+            Prividers::Web(provider) => provider.do_access_token(account).await,
+            #[cfg(feature = "preauth")]
+            Prividers::Apple(provider) => provider.do_access_token(account).await,
+            Prividers::Platform(provider) => provider.do_access_token(account).await,
+        }
+    }
+
+    async fn do_revoke_token(&self, refresh_token: &str) -> AuthResult<()> {
+        match self {
+            Prividers::Web(provider) => provider.do_revoke_token(refresh_token).await,
+            #[cfg(feature = "preauth")]
+            Prividers::Apple(provider) => provider.do_revoke_token(refresh_token).await,
+            Prividers::Platform(provider) => provider.do_revoke_token(refresh_token).await,
+        }
+    }
+
+    async fn do_refresh_token(&self, refresh_token: &str) -> AuthResult<model::RefreshToken> {
+        match self {
+            Prividers::Web(provider) => provider.do_refresh_token(refresh_token).await,
+            #[cfg(feature = "preauth")]
+            Prividers::Apple(provider) => provider.do_refresh_token(refresh_token).await,
+            Prividers::Platform(provider) => provider.do_refresh_token(refresh_token).await,
         }
     }
 }
