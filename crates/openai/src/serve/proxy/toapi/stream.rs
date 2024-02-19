@@ -49,7 +49,6 @@ fn should_skip_conversion(convo: &ConvoResponse, pin_message_id: &str) -> bool {
 
 
 
-// 这里通过websocket转发获取数据
 pub(super) fn stream_handler(
     mut event_soure: EventStream<
         impl Stream<Item = Result<bytes::Bytes, reqwest::Error>> + std::marker::Unpin,
@@ -142,7 +141,7 @@ fn from_tungstenite(message: Message) -> String {
 
 
 
-// 这里通过websocket转发获取数据
+// process webvscoket data and convert to event
 pub(super) async fn ws_stream_handler(
     socket_url:String,
     _conversation_id:String,
