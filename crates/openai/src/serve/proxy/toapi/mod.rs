@@ -196,12 +196,10 @@ pub(super) async fn response_convert(
             let config = resp_ext.context.ok_or(ResponseError::InternalServerError(
                 ProxyError::RequestContentIsEmpty,
             ))?;
-            // print resp.headers().get(header::CONTENT_TYPE)
-            // 判断cotnent-type是否是application/json
+            // process applicaiton for wss
             if resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap().eq("application/json") {
                 // Get response body
                 let body = resp.json::<WeResp>().await?;
-                println!("receive body: {:?}", body.wss_url) ; 
                 // Create a not stream response
                 let stream = stream::ws_stream_handler(
                     body.wss_url ,
