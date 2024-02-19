@@ -177,22 +177,31 @@ async fn handle_socket(socket: WebSocket  , host:String, access_token: String) {
 
     let mut request = base_url.into_client_request().unwrap();
     request.headers_mut().insert(SEC_WEBSOCKET_PROTOCOL, HeaderValue::from_static("json.reliable.webpubsub.azure.v1")); // Or other modifications
-    let (target_ws, _) = connect_async(request)
-        .await
-        .expect("Failed to connect");
-    let (mut client_sender, mut client_receiver) = socket.split();
-    let (mut server_sender, mut server_receiver) = target_ws.split();
-    let server_to_client = async move {
-        while let Some(Ok(msg)) = server_receiver.next().await {
-            client_sender.send(from_tungstenite(msg).unwrap()).await.expect("Failed to send message to client");
+    //let Ok((target_ws, _)) = 
+    
+    match connect_async(request) .await {
+        Ok(target_ws) => {
+            
+            let (mut client_sender, mut client_receiver) = socket.split();
+            let (mut server_sender, mut server_receiver) = target_ws.0.split();
+            let server_to_client = async move {
+                while let Some(Ok(msg)) = server_receiver.next().await {
+                    let _ = client_sender.send(from_tungstenite(msg).unwrap()).await;
+                }
+            };
+            let client_to_server = async move {
+                while let Some(Ok(msg)) = client_receiver.next().await {
+                    let _ = server_sender.send(into_tungstenite(msg)).await;
+                }
+            };
+            tokio::join!(client_to_server, server_to_client);
+        },
+        Err(err) => {
+            eprintln!("Error connecting to target: {}", err);
+            return;
         }
-    };
-    let client_to_server = async move {
-        while let Some(Ok(msg)) = client_receiver.next().await {
-            server_sender.send(into_tungstenite(msg)).await.expect("Failed to send message to server");
-        }
-    };
-    tokio::join!(client_to_server, server_to_client);
+    }
+    
 } 
  
  
