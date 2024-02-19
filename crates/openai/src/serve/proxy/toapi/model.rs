@@ -59,3 +59,12 @@ pub struct Delta<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<&'a str>,
 }
+
+
+
+#[derive(Deserialize, Default , Clone)]
+pub struct WSStreamData {
+    pub body: String,
+    pub conversation_id: String,
+    pub more_body: bool,
+}

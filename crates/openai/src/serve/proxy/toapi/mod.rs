@@ -19,6 +19,7 @@ use crate::now_duration;
 use crate::serve::error::ProxyError;
 use crate::serve::ProxyResult;
 use crate::token;
+
 use crate::{
     arkose::ArkoseToken,
     chatgpt::model::req::{Content, ConversationMode, Messages, PostConvoRequest},
@@ -49,6 +50,7 @@ const SUGGESTIONS: [&'static str; 4] = [
 
 /// Check if the request is supported
 pub(super) fn support(req: &RequestExt) -> bool {
+    print!( "support req: {} {}", req.uri.path() , req.method.as_str());
     if req.uri.path().eq("/v1/chat/completions") && req.method.eq(&Method::POST) {
         if let Some(ref token) = req.bearer_auth() {
             return !token::check_sk_or_sess(token);
@@ -152,6 +154,9 @@ pub(super) async fn send_request(req: RequestExt) -> Result<ResponseExt, Respons
         .send()
         .await
         .map_err(ResponseError::InternalServerError)?;
+    
+    // Check resp content-type 
+    // will handle sse/wss
 
     Ok(ResponseExt::builder()
         .inner(resp)
@@ -163,6 +168,13 @@ pub(super) async fn send_request(req: RequestExt) -> Result<ResponseExt, Respons
         )
         .build())
 }
+ 
+#[derive(serde::Deserialize)]
+struct WeResp {
+    wss_url: String,
+    conversation_id: String ,
+}
+ 
 
 /// Convert response to ChatGPT API
 pub(super) async fn response_convert(
@@ -174,19 +186,34 @@ pub(super) async fn response_convert(
             let config = resp_ext.context.ok_or(ResponseError::InternalServerError(
                 ProxyError::RequestContentIsEmpty,
             ))?;
-
-            // Get response body event source
-            let event_source = resp.bytes_stream().eventsource();
-
-            if config.stream {
-                // Create a  stream response
-                let stream = stream::stream_handler(event_source, config.model)?;
-                Ok(Sse::new(stream).into_response())
-            } else {
+            // print resp.headers().get(header::CONTENT_TYPE)
+            println!("{:?}", resp.headers().get(header::CONTENT_TYPE)) ; 
+            // 判断cotnent-type是否是application/json
+            if resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap().eq("application/json") {
+                // Get response body
+                let body = resp.json::<WeResp>().await?;
                 // Create a not stream response
-                let no_stream = stream::not_stream_handler(event_source, config.model).await?;
-                Ok(no_stream.into_response())
+                let stream = stream::ws_stream_handler(
+                    body.wss_url ,
+                    body.conversation_id ,
+                    config.model).await?;
+                Ok(Sse::new(stream).into_response())
+
+            } else {
+
+                // Get response body event source
+                let event_source = resp.bytes_stream().eventsource();
+                if config.stream {
+                    // Create a  stream response
+                    let stream = stream::stream_handler(event_source, config.model)?;
+                    Ok(Sse::new(stream).into_response())
+                } else {
+                    // Create a not stream response
+                    let no_stream = stream::not_stream_handler(event_source, config.model).await?;
+                    Ok(no_stream.into_response())
+                }
             }
+
         }
         Err(err) => Ok(handle_error_response(err)?.into_response()),
     }

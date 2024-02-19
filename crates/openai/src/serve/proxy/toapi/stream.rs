@@ -1,16 +1,20 @@
 use axum::response::sse::Event;
 use axum::Json;
+ 
+
+use base64::{Engine as _,  engine::general_purpose};
 use eventsource_stream::EventStream;
 use futures_core::Stream;
+use futures_util::StreamExt;
 use serde_json::Value;
 use std::convert::Infallible;
-use tokio_stream::StreamExt;
 
 use crate::chatgpt::model::resp::{ConvoResponse, PostConvoResponse};
 use crate::chatgpt::model::Role;
 use crate::serve::error::{ProxyError, ResponseError};
 use crate::serve::ProxyResult;
 use crate::warn;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 use super::model;
 
@@ -43,6 +47,9 @@ fn should_skip_conversion(convo: &ConvoResponse, pin_message_id: &str) -> bool {
     role_check || metadata_check
 }
 
+
+
+// 这里通过websocket转发获取数据
 pub(super) fn stream_handler(
     mut event_soure: EventStream<
         impl Stream<Item = Result<bytes::Bytes, reqwest::Error>> + std::marker::Unpin,
@@ -99,6 +106,111 @@ pub(super) fn stream_handler(
         }
 
         drop(event_soure)
+    };
+    Ok(stream)
+}
+
+
+// convert tungstenite message to string
+fn from_tungstenite(message: Message) -> String {
+    match message {
+        Message::Text(text) => {
+            let data = serde_json::from_str::<model::WSStreamData>(&text).unwrap();
+            let body = data.body;
+            let decoded = general_purpose::STANDARD.decode(&body).unwrap();
+            let result_data =  String::from_utf8(decoded).unwrap() ;
+            if result_data.starts_with("data: ") {
+                let data_index = result_data.find("data: ").unwrap() + 6;
+                let data_end_index = result_data.find("\n\n").unwrap();
+                let data_str = result_data[data_index..data_end_index].to_string();
+                return data_str ;
+            }
+            return result_data ; 
+
+        },
+        Message::Binary(_binary) => "".to_owned(),
+        Message::Ping(_ping) => "".to_owned(),
+        Message::Pong(_pong) => "".to_owned(),
+        Message::Close(Some(_close)) => "".to_owned(),
+        Message::Close(None) => "".to_owned(),
+        Message::Frame(_) => "".to_owned(),
+    }
+}
+
+
+
+
+
+
+// 这里通过websocket转发获取数据
+pub(super) async fn ws_stream_handler(
+    socket_url:String,
+    _conversation_id:String,
+    model: String,
+) -> Result<impl Stream<Item = Result<Event, Infallible>>, ResponseError> {
+    let id = super::generate_id(29);
+    let timestamp = super::current_timestamp()?;
+    let (ws_stream, _) = connect_async(socket_url.clone()).await.expect( format!("Failed to connect to {}", socket_url.clone()).as_str());
+
+    let (mut _write, mut read) = ws_stream.split();
+
+    
+    let stream = async_stream::stream! {
+        let mut previous_message = String::new();
+        let mut pin_message_id = String::new();
+        let mut set_role = true;
+        let mut stop: u8 = 0;
+
+        while let Some(data) = read.next().await {
+            match data {
+                Ok(message) =>  {
+                    let message_data = from_tungstenite(message);
+                    if message_data.eq("[DONE]") {
+                        yield Ok(Event::default().data(message_data));
+                        break;
+                    }
+                    // empty message means  skip this message
+                    if message_data.eq("") {
+                        continue;
+                    }
+                    if let Ok(res) = serde_json::from_str::<PostConvoResponse>(&message_data) {
+                        if let PostConvoResponse::Conversation(convo) = res {
+
+                            // Skip if role is not assistant
+                            if should_skip_conversion(&convo, &pin_message_id) {
+                                continue;
+                            }
+                            // Skip if  conversation_id is not equal to conversation_id
+                            if convo.conversation_id() != _conversation_id {
+                                continue;
+                            }
+
+                            let mut context = HandlerContext {
+                                stop: &mut stop,
+                                id: &id,
+                                timestamp: &timestamp,
+                                model: &model,
+                                previous_message: &mut previous_message,
+                                pin_message_id: &mut pin_message_id,
+                                set_role: &mut set_role,
+                            };
+
+                            if let Ok(event) = event_convert_handler(&mut context, convo).await {
+                                if stop == 0 || stop <= 1 {
+                                    yield Ok(event);
+                                }
+                            }
+                        }
+                    }
+                },
+                Err(err) => {
+                    warn!("event-source stream error: {}", err);
+                    break;
+                }
+            }
+
+        }
+ 
     };
     Ok(stream)
 }
