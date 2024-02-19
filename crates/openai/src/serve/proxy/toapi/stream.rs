@@ -15,6 +15,8 @@ use crate::serve::error::{ProxyError, ResponseError};
 use crate::serve::ProxyResult;
 use crate::warn;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::header::{HeaderValue, SEC_WEBSOCKET_PROTOCOL};
 
 use super::model;
 
@@ -115,16 +117,20 @@ fn from_tungstenite(message: Message) -> String {
     match message {
         Message::Text(text) => {
             let data = serde_json::from_str::<model::WSStreamData>(&text).unwrap();
-            let body = data.body;
-            let decoded = general_purpose::STANDARD.decode(&body).unwrap();
-            let result_data =  String::from_utf8(decoded).unwrap() ;
-            if result_data.starts_with("data: ") {
-                let data_index = result_data.find("data: ").unwrap() + 6;
-                let data_end_index = result_data.find("\n\n").unwrap();
-                let data_str = result_data[data_index..data_end_index].to_string();
-                return data_str ;
+            if data.msg_type.eq("message"){
+                let body = data.data.unwrap().body;
+                let decoded = general_purpose::STANDARD.decode(&body).unwrap();
+                let result_data =  String::from_utf8(decoded).unwrap() ;
+                if result_data.starts_with("data: ") {
+                    let data_index = result_data.find("data: ").unwrap() + 6;
+                    let data_end_index = result_data.find("\n\n").unwrap();
+                    let data_str = result_data[data_index..data_end_index].to_string();
+                    return data_str ;
+                }
+                return result_data ; 
+
             }
-            return result_data ; 
+            return "".to_owned()
 
         },
         Message::Binary(_binary) => "".to_owned(),
@@ -149,7 +155,12 @@ pub(super) async fn ws_stream_handler(
 ) -> Result<impl Stream<Item = Result<Event, Infallible>>, ResponseError> {
     let id = super::generate_id(29);
     let timestamp = super::current_timestamp()?;
-    let (ws_stream, _) = connect_async(socket_url.clone()).await.expect( format!("Failed to connect to {}", socket_url.clone()).as_str());
+
+    let mut request = socket_url.into_client_request().unwrap();
+    request.headers_mut().insert(SEC_WEBSOCKET_PROTOCOL, HeaderValue::from_static("json.reliable.webpubsub.azure.v1")); // Or other modifications
+    let (ws_stream, _) = connect_async(request)
+        .await
+        .expect("Failed to connect");
 
     let (mut _write, mut read) = ws_stream.split();
 

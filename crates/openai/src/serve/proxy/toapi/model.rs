@@ -64,6 +64,13 @@ pub struct Delta<'a> {
 
 #[derive(Deserialize, Default , Clone)]
 pub struct WSStreamData {
+    pub data: Option<WSStreamDataBody>,
+    #[serde(rename = "type")]
+    pub msg_type: String,
+}
+
+#[derive(Deserialize, Default , Clone)]
+pub struct WSStreamDataBody {
     pub body: String,
     pub conversation_id: String,
     pub more_body: bool,

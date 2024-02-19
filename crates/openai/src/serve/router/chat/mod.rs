@@ -29,9 +29,10 @@ use axum_extra::extract::CookieJar;
 
 use axum::extract::ws::{WebSocket, WebSocketUpgrade, Message , CloseFrame};
 use futures_util::{stream::StreamExt, sink::SinkExt};
-use std::net::SocketAddr;
 use tokio_tungstenite::connect_async;
-
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use std::net::SocketAddr;
+use tokio_tungstenite::tungstenite::http::header::{HeaderValue, SEC_WEBSOCKET_PROTOCOL};
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -173,7 +174,12 @@ async fn proxy_ws(
 }
 async fn handle_socket(socket: WebSocket  , host:String, access_token: String) {
     let base_url  = format!("wss://{}/client/hubs/conversations?access_token={}" ,host, access_token) ;
-    let (target_ws, _) = connect_async(base_url.clone()).await.expect( format!("Failed to connect to {}", base_url.clone().as_str() ).as_str());
+
+    let mut request = base_url.into_client_request().unwrap();
+    request.headers_mut().insert(SEC_WEBSOCKET_PROTOCOL, HeaderValue::from_static("json.reliable.webpubsub.azure.v1")); // Or other modifications
+    let (target_ws, _) = connect_async(request)
+        .await
+        .expect("Failed to connect");
     let (mut client_sender, mut client_receiver) = socket.split();
     let (mut server_sender, mut server_receiver) = target_ws.split();
     let server_to_client = async move {
@@ -207,7 +213,8 @@ fn into_tungstenite(msg:Message) -> ts::Message {
 
 fn from_tungstenite(message: ts::Message) -> Option<Message> {
     match message {
-        ts::Message::Text(text) => Some(Message::Text( r#"{"type":"message","from":"server","dataType":"json","data":"#.to_string() + text.as_str() + "}")),
+        //ts::Message::Text(text) => Some(Message::Text( r#"{"type":"message","from":"server","dataType":"json","data":"#.to_string() + text.as_str() + "}")),
+        ts::Message::Text(text) => Some(Message::Text(text)),
         ts::Message::Binary(binary) => Some(Message::Binary(binary)),
         ts::Message::Ping(ping) => Some(Message::Ping(ping)),
         ts::Message::Pong(pong) => Some(Message::Pong(pong)),
