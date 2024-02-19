@@ -50,7 +50,6 @@ const SUGGESTIONS: [&'static str; 4] = [
 
 /// Check if the request is supported
 pub(super) fn support(req: &RequestExt) -> bool {
-    print!( "support req: {} {}", req.uri.path() , req.method.as_str());
     if req.uri.path().eq("/v1/chat/completions") && req.method.eq(&Method::POST) {
         if let Some(ref token) = req.bearer_auth() {
             return !token::check_sk_or_sess(token);
@@ -122,12 +121,23 @@ pub(super) async fn send_request(req: RequestExt) -> Result<ResponseExt, Respons
 
     // Create request
     let parent_message_id = uuid();
+    let kind = if gpt_model.is_gizmo() {
+        ConversationMode{
+            kind:"gizmo_interaction",
+            gizmo_id:Some(body.model.as_str())
+        }
+    } else {
+        ConversationMode{
+            kind:"primary_assistant",
+            gizmo_id:None
+        } 
+    };
+
+
     let req_body = PostConvoRequest::builder()
         .action(Action::Next)
         .arkose_token(arkose_token.as_deref())
-        .conversation_mode(ConversationMode {
-            kind: "primary_assistant",
-        })
+        .conversation_mode(kind)
         .force_paragen(false)
         .force_rate_limit(false)
         .history_and_training_disabled(true)
@@ -187,11 +197,11 @@ pub(super) async fn response_convert(
                 ProxyError::RequestContentIsEmpty,
             ))?;
             // print resp.headers().get(header::CONTENT_TYPE)
-            println!("{:?}", resp.headers().get(header::CONTENT_TYPE)) ; 
             // 判断cotnent-type是否是application/json
             if resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap().eq("application/json") {
                 // Get response body
                 let body = resp.json::<WeResp>().await?;
+                println!("receive body: {:?}", body.wss_url) ; 
                 // Create a not stream response
                 let stream = stream::ws_stream_handler(
                     body.wss_url ,
